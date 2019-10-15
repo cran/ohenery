@@ -69,6 +69,10 @@ the gammas equal to 1.
 This regression may give odd results when the outcomes are tied,
 imposing an arbitrary order on the tied outcomes.
 Moreover, no warning may be issued in this case.
+In future releases, ties may be dealt with differently,
+perhaps in analogy to how ties are treated in the
+Cox Proportional Hazards regression, using
+the methods of Breslow or Efron.
 
 To avoid incorrect inference when only the top
 performers are recorded, and all others are 
@@ -82,6 +86,15 @@ set weights to 1 for the medal winners, and 0
 for the others. Note that the weights do not
 attach to the participants, they attach to
 the place they took.
+
+Since version 0.1.0 of this package, the
+normalization of weights used in this function
+have changed under the hood. This is to
+give correct inference in the case where
+zero weights are used to signify finishing
+places were not observed. If in doubt,
+please confirm inference by simulations,
+taking as example the simulations in the README.
 }
 \examples{
 

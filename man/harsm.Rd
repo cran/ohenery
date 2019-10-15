@@ -87,9 +87,22 @@ does not always give positive R-squareds,
 and the statistic is otherwise hard to interpret.
 }
 \note{
+Since version 0.1.0 of this package, the
+normalization of weights used in this function
+have changed under the hood. This is to
+give correct inference in the case where
+zero weights are used to signify finishing
+places were not observed. If in doubt,
+please confirm inference by simulations,
+taking as example the simulations in the README.
+
 This regression may give odd results when the outcomes are tied,
 imposing an arbitrary order on the tied outcomes.
 Moreover, no warning may be issued in this case.
+In future releases, ties may be dealt with differently,
+perhaps in analogy to how ties are treated in the
+Cox Proportional Hazards regression, using
+the methods of Breslow or Efron.
 
 To avoid incorrect inference when only the top
 performers are recorded, and all others are 
@@ -139,6 +152,39 @@ df$weight <- ifelse(df$winner,1,0)
 fmla <- place ~ nominated_for_BestDirector + nominated_for_BestActor + Drama 
 
 harsm(fmla,data=df,group=year,weights=weight) 
+
+\donttest{
+# test against logistic regression
+if (require(dplyr)) {
+nevent <- 10000
+set.seed(1234)
+adf <- data_frame(eventnum=floor(seq(1,nevent + 0.7,by=0.5))) \%>\%
+  mutate(x=rnorm(n()),
+         program_num=rep(c(1,2),nevent),
+         intercept=as.numeric(program_num==1),
+         eta=1.5 * x + 0.3 * intercept,
+         place=ohenery::rsm(eta,g=eventnum))
+
+# Harville model
+modh <- harsm(place ~ intercept + x,data=adf,group=eventnum)
+
+# the collapsed data.frame for glm
+ddf <- adf \%>\%
+  arrange(eventnum,program_num) \%>\%
+  group_by(eventnum) \%>\%
+    summarize(resu=as.numeric(first(place)==1),
+              delx=first(x) - last(x),
+              deli=first(intercept) - last(intercept)) \%>\%
+  ungroup()
+
+# glm logistic fit
+modg <- glm(resu ~ delx + 1,data=ddf,family=binomial(link='logit'))
+
+all.equal(as.numeric(coef(modh)),as.numeric(coef(modg)),tolerance=1e-4)
+all.equal(as.numeric(vcov(modh)),as.numeric(vcov(modg)),tolerance=1e-4)
+}
+
+}
 
 }
 \seealso{

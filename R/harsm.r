@@ -89,7 +89,9 @@ globalVariables(c('dumb_rank','.'))
 #' given.
 #' Must be the same length as \code{y}.
 #' @param normalize_wt  if \code{TRUE}, we renormalize \code{wt}, if given,
-#' to have mean value 1.
+#' to have mean value 1. Note that the default value has changed
+#' since version 0.1.0 of this package. Moreover, non-normalized
+#' weights can lead to incorrect inference. Use with caution.
 #' @inheritParams maxLik::maxLik
 #' @return An object of class \code{harsm}, \code{maxLik}, and \code{linodds}.
 #' @keywords fitting
@@ -116,7 +118,7 @@ globalVariables(c('dumb_rank','.'))
 #' modw <- harsmfit(y=y,g=g,X=X,wt=1 + as.numeric(y < 6))
 #' summary(modw)
 #' @export
-harsmfit <- function(y, g, X, wt=NULL, eta0=NULL, normalize_wt=TRUE,
+harsmfit <- function(y, g, X, wt=NULL, eta0=NULL, normalize_wt=FALSE,
 										 method=c('BFGS','NR','CG','NM')) {
 	method <- match.arg(method)
 #2FIX: allow beta0 input.
@@ -220,6 +222,7 @@ harsmfit <- function(y, g, X, wt=NULL, eta0=NULL, normalize_wt=TRUE,
 #' fit.
 #' @keywords fitting
 #' @seealso \code{\link{harsmfit}}, \code{\link{harsmlik}}.
+#' @template note-normalization
 #'
 #' @examples 
 #'
@@ -256,6 +259,39 @@ harsmfit <- function(y, g, X, wt=NULL, eta0=NULL, normalize_wt=TRUE,
 #' fmla <- place ~ nominated_for_BestDirector + nominated_for_BestActor + Drama 
 #'
 #' harsm(fmla,data=df,group=year,weights=weight) 
+#'
+#' \donttest{
+#' # test against logistic regression
+#' if (require(dplyr)) {
+#' nevent <- 10000
+#' set.seed(1234)
+#' adf <- data_frame(eventnum=floor(seq(1,nevent + 0.7,by=0.5))) %>%
+#'   mutate(x=rnorm(n()),
+#'          program_num=rep(c(1,2),nevent),
+#'          intercept=as.numeric(program_num==1),
+#'          eta=1.5 * x + 0.3 * intercept,
+#'          place=ohenery::rsm(eta,g=eventnum))
+#' 
+#' # Harville model
+#' modh <- harsm(place ~ intercept + x,data=adf,group=eventnum)
+#' 
+#' # the collapsed data.frame for glm
+#' ddf <- adf %>%
+#'   arrange(eventnum,program_num) %>%
+#'   group_by(eventnum) %>%
+#'     summarize(resu=as.numeric(first(place)==1),
+#'               delx=first(x) - last(x),
+#'               deli=first(intercept) - last(intercept)) %>%
+#'   ungroup()
+#' 
+#' # glm logistic fit
+#' modg <- glm(resu ~ delx + 1,data=ddf,family=binomial(link='logit'))
+#' 
+#' all.equal(as.numeric(coef(modh)),as.numeric(coef(modg)),tolerance=1e-4)
+#' all.equal(as.numeric(vcov(modh)),as.numeric(vcov(modg)),tolerance=1e-4)
+#' }
+#'
+#' }
 #'
 #' @importFrom stats coef formula model.frame model.matrix na.omit model.response model.weights
 #' @template note-ties

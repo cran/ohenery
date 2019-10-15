@@ -4,7 +4,7 @@
 \alias{harsmfit}
 \title{Experts only softmax regression under Harville model.}
 \usage{
-harsmfit(y, g, X, wt = NULL, eta0 = NULL, normalize_wt = TRUE,
+harsmfit(y, g, X, wt = NULL, eta0 = NULL, normalize_wt = FALSE,
   method = c("BFGS", "NR", "CG", "NM"))
 }
 \arguments{
@@ -30,7 +30,9 @@ given.
 Must be the same length as \code{y}.}
 
 \item{normalize_wt}{if \code{TRUE}, we renormalize \code{wt}, if given,
-to have mean value 1.}
+to have mean value 1. Note that the default value has changed
+since version 0.1.0 of this package. Moreover, non-normalized
+weights can lead to incorrect inference. Use with caution.}
 
 \item{method}{maximisation method, currently either 
    "NR" (for Newton-Raphson),
