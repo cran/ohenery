@@ -437,6 +437,12 @@ test_that("harsmfit bits",{#FOLDUP
 	expect_equal(as.numeric(coefficients(fitnum)),as.numeric(coefficients(fitlet)),tolerance=1e-7)
 	expect_equal(as.numeric(coefficients(fitnum)),as.numeric(coefficients(fitfac)),tolerance=1e-7)
 
+	# warm start
+	expect_error(fitnum <- harsm(outcome ~ V1 + V2,data,group=race),NA)
+	expect_error(fitnum2 <- harsm(outcome ~ V1 + V2,data,group=race,fit0=fitnum),NA)
+	expect_error(fitnum3 <- harsm(outcome ~ V2,data,group=race,fit0=fitnum),NA)
+	expect_error(fitnum4 <- harsm(outcome ~ V2 + V3,data,group=race,fit0=fitnum),NA)
+	expect_error(fitnum5 <- harsm(outcome ~ V3 + V4,data,group=race,fit0=fitnum),NA)
 })#UNFOLD
 test_that("harsm vs logistic",{#FOLDUP
 	# travis only?
@@ -444,7 +450,7 @@ test_that("harsm vs logistic",{#FOLDUP
 	library(dplyr)
 	nop <- 5000
 	set.seed(1234)
-	adf <- data_frame(eventnum=floor(seq(1,nop + 0.7,by=0.5))) %>%
+	adf <- data.frame(eventnum=floor(seq(1,nop + 0.7,by=0.5))) %>%
 		mutate(x=rnorm(n())) %>%
 		mutate(program_num=rep(c(1,2),nop)) %>%
 		mutate(intercept=as.numeric(program_num==1)) %>%
@@ -602,6 +608,21 @@ test_that("hensm bits",{#FOLDUP
 	expect_equal(as.numeric(coefficients(fitnum)),as.numeric(coefficients(fitlet)),tolerance=1e-7)
 	expect_equal(as.numeric(coefficients(fitnum)),as.numeric(coefficients(fitfac)),tolerance=1e-7)
 
+	# warm start!
+	expect_error(fitnum <- hensm(outcome ~ V1 + V2,data,group=race),NA)
+	expect_error(fitnum2 <- hensm(outcome ~ V1 + V2,data,group=race,fit0=fitnum),NA)
+	# why are they not closer?
+	expect_equal(as.numeric(coefficients(fitnum)),as.numeric(coefficients(fitnum2)),tolerance=1e-3)
+
+	expect_error(fitnum3 <- hensm(outcome ~ V1 + V2,data,group=race,fit0=fitnum,ngamma=3),NA)
+	expect_error(fitnum4 <- hensm(outcome ~ V1 + V2,data,group=race,fit0=fitnum,ngamma=4),NA)
+	expect_error(fitnum2b <- hensm(outcome ~ V1,data,group=race,fit0=fitnum),NA)
+	expect_error(fitnum2c <- hensm(outcome ~ V1 + V3,data,group=race,fit0=fitnum),NA)
+
+	# warm start from harsm object.
+	expect_error(har_fitnum <- harsm(outcome ~ V1 + V2,data,group=race),NA)
+	expect_error(fitnum2 <- hensm(outcome ~ V1 + V2,data,group=race,fit0=har_fitnum),NA)
+
 	#for (ttype in c('eta','mu','erank')) {
 		#expect_error(fuh <- predict(fitnum,newdata=data,type=ttype),NA)
 		#expect_error(fuh <- predict(fitlet,newdata=data,type=ttype),NA)
@@ -634,6 +655,66 @@ test_that("hensm consistency",{#FOLDUP
 	expect_equal(fitm$gammas[1:3],gammas[1:3],tolerance=0.03)
 	expect_equal(as.numeric(fitm$beta),beta,tolerance=0.03)
 })#UNFOLD
+#UNFOLD
+context("weighting")#FOLDUP
+test_that("harsmfit zero weights",{#FOLDUP
+	# confirm that zero weights are equivalent to removing the data altogether
+	# travis only?
+	#skip_on_cran()
+	nfeat <- 5
+	set.seed(1234)
+	g <- ceiling(seq(0.1,100,by=0.1))
+	X <- matrix(rnorm(length(g) * nfeat),ncol=nfeat)
+	beta <- rnorm(nfeat)
+	eta <- X %*% beta
+	expect_error(y <- rsm(eta,g=g),NA)
+
+	# usually we use weights for the first k outcomes. 
+	wt <- ifelse(y <= 3,1,0)
+	data <- cbind(data.frame(outcome=y,race=g,wt=wt),as.data.frame(X))
+	fmla <- outcome ~ V1 + V2 + V3 + V4 + V5
+	expect_error(fitm <- harsm(fmla,data,group=race,weights=wt),NA)
+	
+	# now say we want to ignore some of the races
+	ignore <- g <= 10
+	data <- cbind(data.frame(outcome=y,race=g,pre_wt=wt,wt=as.numeric(!ignore) * wt),as.data.frame(X))
+
+	# fit twice
+	expect_error(fitm1 <- harsm(fmla,data,group=race,weights=wt),NA)
+	subdata <- data[!ignore,]
+	expect_error(fitm2 <- harsm(fmla,subdata,group=race,weights=pre_wt),NA)
+	expect_equal(as.numeric(coefficients(fitm2)),as.numeric(coefficients(fitm1)),tolerance=0.0001)
+
+})#UNFOLD
+test_that("hensmfit zero weights",{#FOLDUP
+	# confirm that zero weights are equivalent to removing the data altogether
+	# travis only?
+	#skip_on_cran()
+	nfeat <- 5
+	set.seed(1234)
+	g <- ceiling(seq(0.1,100,by=0.1))
+	X <- matrix(rnorm(length(g) * nfeat),ncol=nfeat)
+	beta <- rnorm(nfeat)
+	eta <- X %*% beta
+	expect_error(y <- rsm(eta,g=g),NA)
+
+	# usually we use weights for the first k outcomes. 
+	wt <- ifelse(y <= 3,1,0)
+	data <- cbind(data.frame(outcome=y,race=g,wt=wt),as.data.frame(X))
+	fmla <- outcome ~ V1 + V2 + V3 + V4 + V5
+	expect_error(fitm <- hensm(fmla,data,group=race,weights=wt,ngamma=2),NA)
+	
+	# now say we want to ignore some of the races
+	ignore <- g <= 10
+	data <- cbind(data.frame(outcome=y,race=g,pre_wt=wt,wt=as.numeric(!ignore) * wt),as.data.frame(X))
+
+	# fit twice
+	expect_error(fitm1 <- hensm(fmla,data,group=race,weights=wt,ngamma=2),NA)
+	subdata <- data[!ignore,]
+	expect_error(fitm2 <- hensm(fmla,subdata,group=race,weights=pre_wt,ngamma=2),NA)
+	expect_equal(as.numeric(coefficients(fitm2)),as.numeric(coefficients(fitm1)),tolerance=0.0001)
+})#UNFOLD
+
 #UNFOLD
 
 
