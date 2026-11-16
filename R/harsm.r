@@ -89,7 +89,7 @@ globalVariables(c('dumb_rank', '.'))
 #' the last ranked outcome within a group is essentially ignored.
 #' Must be the same length as \code{y}.
 #' @param eta0  an optional vector of the consensus odds. These are added to
-#' the fit odds in odds space before the likelihood caclulation. If given,
+#' the fit odds in odds space before the likelihood calculation. If given,
 #' then when the model is used to predict, similar consensus odds must be
 #' given.
 #' Must be the same length as \code{y}.
@@ -105,7 +105,8 @@ globalVariables(c('dumb_rank', '.'))
 #' @template param-regularization
 #'
 #' @inheritParams maxLik::maxLik
-#' @return An object of class \code{harsm}, \code{maxLik}, and \code{linodds}.
+#' @return An object of class \code{harsm} and \code{linodds}. The
+#' \code{maxLik} fit is stored in the \code{mle} element.
 #' @keywords fitting
 #' @seealso the friendly interface \code{harsm},
 #' the likelihood function, \code{\link{harsmlik}},
@@ -140,7 +141,7 @@ harsmfit <- function(
   beta0 = NULL,
   normalize_wt = FALSE,
   reg_wt = NULL,
-  reg_zero = 0,
+  reg_zero = NULL,
   reg_power = NULL,
   reg_coef_idx = NULL,
   reg_standardize = FALSE,
@@ -194,6 +195,7 @@ harsmfit <- function(
   )
   retv <- list(
     mle = rv,
+    beta = rv$estimate,
     coefficients = rv$estimate,
     estimate = rv$estimate, # sigh
     wt = wt,
@@ -207,12 +209,21 @@ harsmfit <- function(
     reg_coef_idx = reg_coef_idx,
     reg_standardize = reg_standardize
   )
+  if (is.null(colnames(X))) {
+    Xnames <- paste0('beta', 1:ncol(X))
+  } else {
+    Xnames <- colnames(X)
+  }
+  names(retv$mle$estimate) <- Xnames
+  names(retv$coefficients) <- Xnames
+  names(retv$estimate) <- Xnames
+  names(retv$beta) <- Xnames
   # do some summarization
   retv$deviance <- -2 * rv$maximum
   retv$deviance_df <- length(retv$coefficients)
   # now the estimated rank
   deleta <- X %*% retv$coefficients
-  etahat <- deleta + ifelse(!is.null(eta0), eta0, rep(0, length(g)))
+  etahat <- if (is.null(eta0)) deleta else deleta + eta0
   retv$etahat <- etahat
   retv$erank <- harsm_invlink(retv$etahat, g = g)
 
@@ -241,7 +252,7 @@ harsmfit <- function(
   } else {
     retv$delta_R2 <- NA_real_
   }
-  class(retv) <- 'harsm'
+  class(retv) <- c('harsm', 'linodds')
   retv
 }
 
@@ -298,8 +309,8 @@ harsmfit <- function(
 #' @template etc
 #' @template note-ties
 #' @template note-weights
-#' @return An object of class \code{harsm}, but also of \code{maxLik} with the
-#' fit.
+#' @return An object of class \code{harsm} and \code{linodds}. The
+#' \code{maxLik} fit is stored in the \code{mle} element.
 #' @keywords fitting
 #' @seealso \code{\link{harsmfit}}, \code{\link{harsmlik}}.
 #' @template note-normalization
@@ -390,7 +401,7 @@ harsmfit <- function(
 #' }
 #'
 #'
-#' @importFrom stats coef formula model.frame model.matrix na.omit model.response model.weights
+#' @importFrom stats coef formula model.frame model.matrix na.omit model.response model.weights .getXlevels
 #' @export
 #' @rdname harsm
 harsm <- function(
@@ -400,7 +411,7 @@ harsm <- function(
   weights = NULL,
   fit0 = NULL,
   reg_wt = NULL,
-  reg_zero = 0,
+  reg_zero = NULL,
   reg_power = NULL,
   reg_coef_idx = NULL,
   reg_standardize = FALSE,
@@ -427,6 +438,9 @@ harsm <- function(
   mf <- eval(mf, parent.frame()) #evaluate call
 
   Xs <- model.matrix(formula, mf)
+  # remember factor levels and contrasts so predict can rebuild the same columns
+  xlevels <- .getXlevels(attr(mf, 'terms'), mf)
+  contrasts <- attr(Xs, 'contrasts')
   # remove intercept!
   if (colnames(Xs)[1] == '(Intercept)') {
     Xs <- Xs[, -1, drop = FALSE]
@@ -463,7 +477,7 @@ harsm <- function(
   )
   names(retv$mle$estimate) <- colnames(dat$Xs)
   names(retv$coefficients) <- colnames(dat$Xs)
-  retv <- as.linodds(retv, formula, beta = retv$coefficients)
+  retv <- as.linodds(retv, formula, beta = retv$coefficients, xlevels = xlevels, contrasts = contrasts)
   retv
 }
 #' @export

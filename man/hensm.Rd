@@ -62,18 +62,19 @@ If a \code{harsm} object is given, then \code{ngamma} must be non-null.}
 
 \item{reg_wt}{the multiplicative weight(s) of the regularization terms.
 must be non-negative.
-May be a scalar or vector, but will be recycled to the length of the \code{reg_coef_idx}.}
+May be a scalar or vector, but will be recycled to the length of the \code{reg_coef_idx}.
+If not given, defaults to zero which is equivalent to no regularization.}
 
 \item{reg_zero}{the \sQuote{zero} of the regularization terms. This would
 usually be zero if you want to shrink to zero, but in some cases you may
-with to shrink to 1 for example.
+wish to shrink to 1 for example.
 May be a scalar or vector, but will be recycled to the length of the \code{reg_coef_idx}.
 If \code{NULL} is given, defaults to zeroes for beta terms,
 and ones for gamma terms in a Henery model fit, all zeroes
 for Harville model fits.}
 
 \item{reg_power}{the power of the regularization terms, 2 for ridge
-regression, 1 for lasso.}
+regression, 1 for lasso. Must be positive.}
 
 \item{reg_coef_idx}{the index of the coefficient which the corresponding
 regularization term is applied to. For the Harville model, the indices only refer to
@@ -101,8 +102,8 @@ Only terms associated with the betas are so normalized.}
 \item{x}{an object used to select a method.}
 }
 \value{
-An object of class \code{hensm}, but also of \code{maxLik} with the
-fit.
+An object of class \code{hensm} and \code{linodds}. The
+\code{maxLik} fit is stored in the \code{mle} element.
 }
 \description{
 A user friendly interface to the softmax regression under the Henery model.
@@ -194,11 +195,11 @@ fitm <- hensm(fmla,data,group=race)
 library(dplyr)
 data(race_data)
 df <- race_data \%>\%
-	group_by(EventId) \%>\%
-		mutate(eta0=log(WN_pool / sum(WN_pool))) \%>\%
-	ungroup() \%>\%
-	mutate(weights=ifelse(!is.na(Finish),1,0)) \%>\%
-	mutate(fac_age=cut(Age,c(0,3,5,7,Inf),include.lowest=TRUE))
+  group_by(EventId) \%>\%
+    mutate(eta0=log(WN_pool / sum(WN_pool))) \%>\%
+  ungroup() \%>\%
+  mutate(weights=ifelse(!is.na(Finish),1,0)) \%>\%
+  mutate(fac_age=cut(Age,c(0,3,5,7,Inf),include.lowest=TRUE))
 
 # Henery Model with market efficiency
 hensm(Finish ~ eta0,data=df,group=EventId,weights=weights,ngamma=3)

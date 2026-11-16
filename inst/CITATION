@@ -17,5 +17,6 @@ bibentry(
   textVersion = paste0("Steven E. Pav (", pkg_year, "). ", meta$Package, ": ", fix_title, ". ", pkg_vers, ".")
 )
 
+
 #for vim modeline: (do not edit)
 # vim:fdm=marker:fmr=FOLDUP,UNFOLD:cms=#%s:syn=r:ft=r

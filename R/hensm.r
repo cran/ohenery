@@ -72,16 +72,17 @@ setOldClass('hensm')
 #' The code relies on the likelihood function of \code{\link{hensmlik}},
 #' and MLE code from \code{\link[maxLik]{maxLik}}.
 #'
-#' @param gamma0  an optional vector of the initial estimate of beta for
+#' @param gamma0  an optional vector of the initial estimate of gamma for
 #' \sQuote{warm start} of the estimation procedure.
-#' Must be of length \code{ngamma - 1}.
+#' If given, \code{ngamma} is taken to be \code{length(gamma0) + 1}.
 #' Should only affect the speed of the computation, not the results.
 #' Defaults to all ones.
 #'
 #' @inheritParams hensm
 #' @inheritParams harsmfit
 #' @inheritParams maxLik::maxLik
-#' @return An object of class \code{hensm}, \code{maxLik}, and \code{linodds}.
+#' @return An object of class \code{hensm} and \code{linodds}. The
+#' \code{maxLik} fit is stored in the \code{mle} element.
 #' @keywords fitting
 #' @seealso the friendly interface \code{hensm},
 #' the likelihood function, \code{\link{hensmlik}},
@@ -133,7 +134,9 @@ hensmfit <- function(
   k <- ncol(X)
   if (is.null(beta0)) {
     beta0 <- array(0, k)
-  }
+  } else {
+		stopifnot(length(beta0)==k)
+	}
   theta0 <- c(beta0, gamma0)
   reg_zero <- .regularization_default_zero(reg_zero, reg_coef_idx, num_beta = k)
   reg_wt <- .regularization_standardize(
@@ -175,7 +178,7 @@ hensmfit <- function(
   retv <- list(
     mle = rv,
     beta = rv$estimate[1:k],
-    coefficients = rv,
+    coefficients = rv$estimate,
     gammas = rv$estimate[(k + 1):length(theta0)],
     gamma2 = rv$estimate[k + 1],
     estimate = rv$estimate, # sigh
@@ -197,6 +200,8 @@ hensmfit <- function(
     Xnames <- colnames(X)
   }
   names(retv$mle$estimate) <- c(Xnames, gnames)
+  names(retv$coefficients) <- c(Xnames, gnames)
+  names(retv$estimate) <- c(Xnames, gnames)
   names(retv$beta) <- Xnames
 
   # do some summarization
@@ -242,8 +247,8 @@ hensmfit <- function(
 #' @template etc
 #' @template note-ties
 #' @template note-weights
-#' @return An object of class \code{hensm}, but also of \code{maxLik} with the
-#' fit.
+#' @return An object of class \code{hensm} and \code{linodds}. The
+#' \code{maxLik} fit is stored in the \code{mle} element.
 #' @keywords fitting
 #' @seealso \code{\link{harsm}}, \code{\link{smlik}}.
 #' @template note-normalization
@@ -277,11 +282,11 @@ hensmfit <- function(
 #' library(dplyr)
 #' data(race_data)
 #' df <- race_data %>%
-#' 	group_by(EventId) %>%
-#' 		mutate(eta0=log(WN_pool / sum(WN_pool))) %>%
-#' 	ungroup() %>%
-#' 	mutate(weights=ifelse(!is.na(Finish),1,0)) %>%
-#' 	mutate(fac_age=cut(Age,c(0,3,5,7,Inf),include.lowest=TRUE))
+#'   group_by(EventId) %>%
+#'     mutate(eta0=log(WN_pool / sum(WN_pool))) %>%
+#'   ungroup() %>%
+#'   mutate(weights=ifelse(!is.na(Finish),1,0)) %>%
+#'   mutate(fac_age=cut(Age,c(0,3,5,7,Inf),include.lowest=TRUE))
 #'
 #' # Henery Model with market efficiency
 #' hensm(Finish ~ eta0,data=df,group=EventId,weights=weights,ngamma=3)
@@ -320,7 +325,7 @@ hensmfit <- function(
 #' fitrg2 <- hensm(fmla,data=df,group=EventId,weights=weights,ngamma=3,
 #'   reg_wt=rep(1,4), reg_power=2, reg_zero=c(0,0,1,1), reg_coef_idx=1:4)
 #'
-#' @importFrom stats coef formula model.frame model.matrix na.omit
+#' @importFrom stats coef formula model.frame model.matrix na.omit .getXlevels
 #' @export
 #' @rdname hensm
 hensm <- function(
@@ -358,6 +363,9 @@ hensm <- function(
   mf <- eval(mf, parent.frame()) #evaluate call
 
   Xs <- model.matrix(formula, mf)
+  # remember factor levels and contrasts so predict can rebuild the same columns
+  xlevels <- .getXlevels(attr(mf, 'terms'), mf)
+  contrasts <- attr(Xs, 'contrasts')
   # remove intercept!
   if (colnames(Xs)[1] == '(Intercept)') {
     Xs <- Xs[, -1, drop = FALSE]
@@ -408,7 +416,7 @@ hensm <- function(
     reg_coef_idx = reg_coef_idx,
     reg_standardize = reg_standardize
   )
-  retv <- as.linodds(retv, formula, beta = retv$beta)
+  retv <- as.linodds(retv, formula, beta = retv$beta, xlevels = xlevels, contrasts = contrasts)
   retv
 }
 #' @export

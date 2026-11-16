@@ -168,6 +168,7 @@ NumericVector harsmlik(IntegerVector g,
 	int gel = g.length();
 	if (gel != idx.length()) { stop("length mismatch: g and idx"); }
 	if (gel != eta.length()) { stop("length mismatch: g and eta"); }
+	if (gel == 0) { stop("empty input: g, idx and eta have length zero"); }
 	if (all( idx > 0 ).is_true()) { stop("idx should be zero indexed, not 1 indexed"); }
 	if ((any( idx < 0 ).is_true()) or (any( idx >= gel ).is_true())) { stop("idx out of bounds. should be zero indexed, not 1 indexed"); }
 
@@ -195,6 +196,7 @@ NumericVector harsmlik(IntegerVector g,
 	int thisgrp;
 	double loglik = 0;
 	double summu = mu[jjj];
+	if (has_deriv) { sumgrad = summu * del_eta(jjj, _); }
 	double thiswt;
 
 	for (int iii=1;iii < idx.length();iii++) {
@@ -262,6 +264,7 @@ NumericVector hensmlik(IntegerVector g,
 	int gel = g.length();
 	if (gel != idx.length()) { stop("length mismatch: g and idx"); }
 	if (gel != eta.length()) { stop("length mismatch: g and eta"); }
+	if (gel == 0) { stop("empty input: g, idx and eta have length zero"); }
 	if (all( idx > 0 ).is_true()) { stop("idx should be zero indexed, not 1 indexed"); }
 	if ((any( idx < 0 ).is_true()) or (any( idx >= gel ).is_true())) { stop("idx out of bounds. should be zero indexed, not 1 indexed"); }
 	// dunno.

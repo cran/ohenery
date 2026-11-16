@@ -67,11 +67,12 @@ int pick_winner(NumericVector probs,int max_el) {
 //' @details
 //' 
 //' Given vectors \eqn{\mu} and \eqn{\gamma}, first computes
-//' \deqn{\pi_{1,i} = \frac{\mu_i^{\gamma_1}}{\sum_j \mu_j^{\gamma_1}},}
+//' \deqn{\pi_{1,i} = \frac{\mu_i}{\sum_j \mu_j},}
 //' then assigns a \eqn{1} to participant \eqn{i} with probability
 //' \eqn{\pi_{1,i}}. The \sQuote{winning} participant is then removed
 //' from consideration, and the process is repeated using the remaining
-//' \eqn{\mu} and \eqn{\gamma} vectors.
+//' \eqn{\mu}, raised to the power \eqn{\gamma_2} for second place,
+//' \eqn{\gamma_3} for third place, and so on.
 //'
 //' Typically one has that \eqn{\mu_i = \exp{\eta_i}}, for some
 //' \sQuote{odds}, \eqn{\eta_i}.
@@ -80,7 +81,10 @@ int pick_winner(NumericVector probs,int max_el) {
 //' model.
 //'
 //' @param mu  a vector of the probabilities of taking first place.
-//' @param gamma  a vector of the gamma coefficients. Should have length
+//' Must be all non-negative and non-NA.
+//' @param gamma  a vector of the gamma coefficients. The first element is
+//' \eqn{\gamma_2}, the exponent for second place, as in
+//' \code{\link{hensmlik}}. Should have length
 //' one less than \code{mu}, but if longer the unused elements are ignored.
 //' If shorter, we reserve the right to either throw an error or extend out
 //' the last gamma element. If not given, the coefficients are assumed
@@ -107,6 +111,7 @@ IntegerVector rhenery(NumericVector mu,Rcpp::Nullable<NumericVector> gamma = R_N
 		if (nel > (1 + gammavals.length())) { stop("length mismatch: mu and gamma"); }
 	}
 	if (any( mu < 0 ).is_true()) { stop("mu out of bounds. must be non-negative."); }
+	if (any( is_na(mu) ).is_true()) { stop("mu has NA/NaN values, not allowed."); }
 	double summu = sum(mu);
 	if (summu < 0) { stop("negative mu makes no sense, or you have NA probs."); }
 	int max_el = nel;
